@@ -1,14 +1,25 @@
+# Python
 venv/
-docs/
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
 dist/
 build/
 *.egg-info/
 .eggs/
-.mypy_cache/
-.ruff_cache/
+
+# Node.js
 node/node_modules/
 node/dist/
+
+# AI / internal docs (not for public consumption)
+docs/
+
+# Editor
+.DS_Store
+.vscode/
+.idea/
