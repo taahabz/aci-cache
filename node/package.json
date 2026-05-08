@@ -1,6 +1,6 @@
 {
   "name": "aci-cache",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Adaptive cache invalidation for Redis. Drop-in wrapper, zero config.",
   "type": "module",
   "main": "dist/index.js",
