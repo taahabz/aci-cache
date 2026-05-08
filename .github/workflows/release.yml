@@ -1,0 +1,126 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"   # triggers on v0.1.0, v1.0.0, etc.
+
+permissions:
+  contents: write  # needed to create GitHub Releases
+
+jobs:
+  # ──────────────────────────────────────────────────────
+  # Run full test suite before publishing
+  # ──────────────────────────────────────────────────────
+  test:
+    name: Test before release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Python deps
+        run: pip install -e ".[dev]" pytest-asyncio
+
+      - name: Python tests
+        run: pytest tests/ -v
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: node/package-lock.json
+
+      - name: Install Node deps
+        run: npm ci
+        working-directory: node
+
+      - name: Node.js tests
+        run: npm test
+        working-directory: node
+
+  # ──────────────────────────────────────────────────────
+  # Publish Python package to PyPI
+  # ──────────────────────────────────────────────────────
+  publish-python:
+    name: Publish to PyPI
+    needs: test
+    runs-on: ubuntu-latest
+    environment: release   # optional: require manual approval in GitHub
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install build tools
+        run: pip install build twine
+
+      - name: Build distribution
+        run: python -m build
+
+      - name: Publish to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: twine upload dist/*
+
+  # ──────────────────────────────────────────────────────
+  # Publish Node.js package to npm
+  # ──────────────────────────────────────────────────────
+  publish-node:
+    name: Publish to npm
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+          cache: npm
+          cache-dependency-path: node/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: node
+
+      - name: Build TypeScript
+        run: npm run build
+        working-directory: node
+
+      - name: Publish to npm
+        run: npm publish
+        working-directory: node
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # ──────────────────────────────────────────────────────
+  # Create GitHub Release with changelog notes
+  # ──────────────────────────────────────────────────────
+  github-release:
+    name: Create GitHub Release
+    needs: [publish-python, publish-node]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: dist/*
